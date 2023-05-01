@@ -10,44 +10,52 @@ def index(request):
     myname = random.choice(mynames)
     return render(request, "index.html", locals())
 
-def nkustnews(request):
-    data = models.NKUSTnews.objects.all()
-    return render(request, "nkustnews.html", locals())
-
-def phonelist(request):
-    data = models.PhoneModel.objects.all()
-    return render(request, "phonelist.html", locals())
-
 def all_data(request):
     url = "https://opendata.hccg.gov.tw/OpenDataFileHit.ashx?ID=48DEDBDAC3A31FC6&u=77DFE16E459DFCE3F5CEA2F931E333F7E23D5729EF83D5F20744125E844FB27044F9892E6F09372518441B3BB84260426ADE242A57DFB9E8C9A50C50134F4F47"
-
-    r = requests.get(url)         
-    data = json.loads(r.text)     
+    r = requests.get(url)
+    data = json.loads(r.text)
     msg = ""
-    msg = "<h2>新竹市自行車可用資訊" + data['updated_at'] + "</h2><hr>"   
-    bicycle_data = data['retVal'] 
-    msg = msg + "<table><tr bgcolor=#aaaaaa><td>站名</td><td>可用數量</td></tr>"
+    msg = "<h2>" + data["updated_at"] + "</h2><br>"
+    bicycle_data = data["retVal"]
+    msg = msg + "<table><tr><td>站名</td><td>自行車數量</td></tr>"
     for item in bicycle_data:
-        msg = msg + "<tr bgcolor=#33ff33><td>{}</td><td>{}/{}</td></tr>".format(item['sna'].split("_")[1], item['sbi'], item['tot'])
+        msg = msg + "<tr bgcolor=#ccffcc><td>{}</td><td>{}/{}</td></tr>".format(
+            item['sna'].split("_")[1], 
+            item['sbi'], 
+            item['tot'])
     msg = msg + "</table>"
     return HttpResponse(msg)
 
 def filtered_data(request):
-    # 先把舊資料通通刪除
+    # 先刪除所有的舊資料
     models.HBicycleData.objects.all().delete()
-    # 要比照all_data函式的程式，把網站上所有的資料都下載解析，放到資料表 (HBicycleData) 裡面
+    # 先把所有的資料放到資料庫中，比照all_data()中的程式碼
     url = "https://opendata.hccg.gov.tw/OpenDataFileHit.ashx?ID=48DEDBDAC3A31FC6&u=77DFE16E459DFCE3F5CEA2F931E333F7E23D5729EF83D5F20744125E844FB27044F9892E6F09372518441B3BB84260426ADE242A57DFB9E8C9A50C50134F4F47"
-    r = requests.get(url)         
-    data = json.loads(r.text)     
-    bicycle_data = data['retVal'] 
+    r = requests.get(url)
+    data = json.loads(r.text)
+    bicycle_data = data["retVal"]
     for item in bicycle_data:
         new_record = models.HBicycleData(
             sna = item['sna'].split("_")[1],
             sbi = int(item['sbi']),
-            tot = int(item['tot'])
-            )
+            tot = int(item['tot']))
         new_record.save()
-
-    # 過濾 HBicycleData 裡面的所有記錄，找出其中sbi>=10的站台放到data中
+    # 從資料表裡面過濾出我們想要的資料
     data = models.HBicycleData.objects.filter(sbi__gte=10)
     return render(request, "filter.html", locals())
+
+def nkustnews(request):
+    data = models.NKUSTnews.objects.all()
+    return render(request, "nkustnews.html", locals())
+
+def phonelist(request, id=-1):
+    if id==-1:
+        data = models.PhoneModel.objects.all()
+    else:
+        maker = models.PhoneMaker.objects.get(id=id)         #找一個用get
+        data = models.PhoneModel.objects.filter(maker=maker) #找好多個，用filter
+    return render(request, "phonelist.html", locals())
+
+def chart(request):
+    data = models.PhoneModel.objects.all()
+    return render(request, "chart.html", locals())
